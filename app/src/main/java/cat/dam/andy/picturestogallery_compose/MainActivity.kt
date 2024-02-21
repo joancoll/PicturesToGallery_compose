@@ -134,7 +134,7 @@ class MainActivity : ComponentActivity() {
                     getPictureImage()
                 } else {
                     Toast.makeText(
-                        this@MainActivity,
+                        context,
                         "Camera permission denied",
                         Toast.LENGTH_SHORT
                     ).show()
@@ -171,7 +171,7 @@ class MainActivity : ComponentActivity() {
                     launcherGallery.launch(getGalleryIntent())
                 } else {
                     Toast.makeText(
-                        this@MainActivity,
+                        context,
                         "Gallery permission denied",
                         Toast.LENGTH_SHORT
                     ).show()
@@ -187,13 +187,13 @@ class MainActivity : ComponentActivity() {
                 viewModel.imageUri.value = pickedImageUri
             }
         } else {
-            Toast.makeText(this@MainActivity, "Cancelled...", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Cancelled...", Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun handleTakePictureResult(result: ActivityResult) {
         if (result.resultCode == RESULT_OK) {
-            Toast.makeText(this@MainActivity, "Image captured", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Image captured", Toast.LENGTH_SHORT).show()
             viewModel.imageUri.value = uriPhotoImage
             if (!apiRequiresScopePermissions()) {
                 refreshGallery() //refresca gallery per veure nou fitxer (OLD API)
@@ -201,7 +201,7 @@ class MainActivity : ComponentActivity() {
             //Intent data = result.getData(); //si volguessim només la miniatura
         } else {
             Toast.makeText(
-                this@MainActivity, getString(R.string.photo_capture_error),
+                context, getString(R.string.photo_capture_error),
                 Toast.LENGTH_SHORT
             ).show()
         }
@@ -223,7 +223,7 @@ class MainActivity : ComponentActivity() {
 
             if (intent.resolveActivity(packageManager) == null) {
                 Toast.makeText(
-                    this@MainActivity, "El seu dispositiu no permet accedir a la galeria",
+                    context, "El seu dispositiu no permet accedir a la galeria",
                     Toast.LENGTH_SHORT
                 ).show()
             }
@@ -245,7 +245,7 @@ class MainActivity : ComponentActivity() {
         } else {
             // L'usuari pot haver cancel·lat la presa de la foto o pot haver-hi altres problemes.
             Toast.makeText(
-                this@MainActivity, getString(R.string.photo_capture_error),
+                context, getString(R.string.photo_capture_error),
                 Toast.LENGTH_SHORT
             ).show()
         }

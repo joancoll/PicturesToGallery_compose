@@ -25,11 +25,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.core.content.FileProvider
 import cat.dam.andy.picturestogallery_compose.ui.theme.PicturesToGallery_composeTheme
 import coil.compose.rememberAsyncImagePainter
 import java.io.File
-import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -38,7 +36,9 @@ class MainActivity : ComponentActivity() {
     private val context: Context by lazy { this }
     private var uriPhotoImage: Uri? = null
     private val viewModel by viewModels<MainViewModel>()
-    private var launcherTakePicture by mutableStateOf<ActivityResultLauncher<Intent>?>(null)
+    private lateinit var launcherTakePicture: ActivityResultLauncher<Intent>
+
+    //    by mutableStateOf<ActivityResultLauncher<Intent>?>(null)
     private val launcherGallery = rememberLauncher { handleGalleryResult(it) }
     private lateinit var permissionManager: PermissionManager
 
@@ -119,57 +119,62 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleGalleryButtonClick(launcherGallery: ActivityResultLauncher<Intent>) {
-            handleMediaAccessGallery(launcherGallery)
+        handleMediaAccessGallery(launcherGallery)
     }
 
     private fun handleTakePictureButtonClick() {
         permissionManager
-            .request(Permissions.ImgCamPerm)
-            .rationale(description = "Permission needed to take pictures and to save them", title = "Camera and Storage Permission")
+            .request(Permissions.PermCamImgSave)
+            .rationale(
+                description = "Permissions needed to take and save pictures",
+                title = "Camera Access and storage Permission"
+            )
             .checkAndRequestPermission { isGranted ->
                 if (isGranted) {
-                    captureImageAndSaveToGalleryInternal()
+                    getPictureImage()
                 } else {
-                    Toast.makeText(this@MainActivity, "Camera permission denied", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Camera permission denied",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
     }
 
+    private fun getPictureImage() {
+        val values = ContentValues().apply {
+            put(MediaStore.Images.Media.TITLE, "Image")
+            put(MediaStore.Images.Media.DESCRIPTION, "From your Camera")
+        }
+        uriPhotoImage =
+            contentResolver.insert(
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                values
+            )
+        val cameraIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE).apply {
+            putExtra(MediaStore.EXTRA_OUTPUT, uriPhotoImage)
+        }
+        // Utilitza el launcherTakePicture ja inicialitzat
+        launcherTakePicture.launch(cameraIntent)
+    }
+
     private fun handleMediaAccessGallery(launcherGallery: ActivityResultLauncher<Intent>) {
         permissionManager
-            .request(Permissions.ImagePick)
-            .rationale(description = "Permission needed to access media", title = "Media Access Permission")
+            .request(Permissions.PermImagePick)
+            .rationale(
+                description = "Permission needed to access media",
+                title = "Media Access Permission"
+            )
             .checkAndRequestPermission { isGranted ->
                 if (isGranted) {
                     launcherGallery.launch(getGalleryIntent())
                 } else {
-                    Toast.makeText(this@MainActivity, "Gallery permission denied", Toast.LENGTH_SHORT).show()
-                }
-            }
-}
-
-    private fun captureImageAndSaveToGalleryInternal() {
-        permissionManager
-            .request(Permissions.ImagePick)
-            .rationale(
-                description = "Permission needed to save image",
-                title = "Storage Permission"
-            )
-            .checkAndRequestPermission { isGranted ->
-                if (isGranted) {
-                    val values = ContentValues().apply {
-                        put(MediaStore.Images.Media.TITLE, "Image")
-                        put(MediaStore.Images.Media.DESCRIPTION, "From your Camera")
-                    }
-                    uriPhotoImage =
-                        contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
-                    val cameraIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE).apply {
-                        putExtra(MediaStore.EXTRA_OUTPUT, uriPhotoImage)
-                    }
-                    // Utilitza el launcherTakePicture ja inicialitzat
-                    launcherTakePicture?.launch(cameraIntent)
-                } else {
-                    Toast.makeText(this@MainActivity, "Storage permission denied", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Gallery permission denied",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
     }
@@ -228,70 +233,6 @@ class MainActivity : ComponentActivity() {
         return intent
     }
 
-//    private fun captureImageAndSaveToGallery() {
-//        val values = ContentValues().apply {
-//            put(MediaStore.Images.Media.TITLE, "Image")
-//            put(MediaStore.Images.Media.DESCRIPTION, "From your Camera")
-//        }
-//        uriPhotoImage =
-//            contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
-//
-//        val cameraIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE).apply {
-//            putExtra(MediaStore.EXTRA_OUTPUT, uriPhotoImage)
-//        }
-//
-//        // Utilitza el launcherTakePicture ja inicialitzat
-//        launcherTakePicture?.launch(cameraIntent)
-//    }
-
-    fun captureImageAndSaveToGalleryOldAPI() {
-        val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
-        // Ensure that there's a camera activity to handle the intent
-        if (takePictureIntent.resolveActivity(packageManager) != null) {
-            // Create the File where the photo should go
-            var photoFile: File? = null
-            try {
-                photoFile = createImageFile()
-            } catch (ex: IOException) {
-                Toast.makeText(
-                    this@MainActivity, "Error en la creació del fitxer",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-            // Continue only if the File was successfully created
-            if (photoFile != null) {
-                val values = ContentValues()
-                values.put(MediaStore.Images.Media.TITLE, getString(R.string.picture_title))
-                values.put(
-                    MediaStore.Images.Media.DESCRIPTION,
-                    getString(R.string.picture_time) + " " + System.currentTimeMillis()
-                )
-                val uriImage = FileProvider.getUriForFile(
-                    this,
-                    this.packageName + ".provider",  //(use your app signature + ".provider" )
-                    photoFile
-                )
-                values.put(MediaStore.Images.Media.DATA, uriImage.path)
-                contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values)
-
-                val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
-                intent.putExtra(MediaStore.EXTRA_OUTPUT, uriImage)
-                val launcherTakePicture = rememberLauncherTakePicture(launcherTakePictureCallback)
-                launcherTakePicture.launch(intent)
-            } else {
-                Toast.makeText(
-                    this@MainActivity, getString(R.string.picture_creation_error),
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-        } else {
-            Toast.makeText(
-                this@MainActivity, getString(R.string.camera_access_error),
-                Toast.LENGTH_SHORT
-            ).show()
-        }
-    }
-
     private val launcherTakePictureCallback = { result: ActivityResult ->
         if (result.resultCode == RESULT_OK) {
             // La foto s'ha capturat amb èxit i es pot afegir a la galeria aquí si és necessari.
@@ -310,27 +251,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun createImageFile(): File? {
-        val wasSuccessful: Boolean //just for testing mkdirs
-        // Create an image file name
-        val timeStamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.ENGLISH).format(Date())
-        val imageFileName = "IMG_" + timeStamp + "_"
-        val storageDir =
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES + File.separator + this.packageName)
-        wasSuccessful = if (!storageDir.exists()) {
-            storageDir.mkdir()
-        } else {
-            storageDir.mkdirs()
-        }
-        val image = File.createTempFile(
-            imageFileName,  /* prefix */
-            ".jpg",  /* suffix */
-            storageDir /* directory */
-        )
-        val currentPhotoPath = image.absolutePath
-        uriPhotoImage = Uri.fromFile(image)
-        return image
-    }
 
     private fun refreshGallery() {
         val mediaScanIntent = Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE)
@@ -342,9 +262,5 @@ class MainActivity : ComponentActivity() {
         return Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && SdkExtensions.getExtensionVersion(
             Build.VERSION_CODES.R
         ) >= 2
-    }
-
-    private fun apiRequiresMediaAccess(): Boolean {
-        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
     }
 }
